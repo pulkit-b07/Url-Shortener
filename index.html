@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SnapLink - Modern Fast URL Shortener</title>
+  <meta name="description" content="Blazing-fast URL shortener with custom aliases, live click analytics, and instant QR codes.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              200: '#c7d2fe',
+              300: '#a5b4fc',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+              800: '#3730a3',
+              900: '#312e81',
+              950: '#1e1b4b',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- QRCode.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <!-- Canvas Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body class="min-h-screen bg-slate-50 dark:bg-[#0b0f19] text-slate-800 dark:text-slate-100 transition-colors duration-200 bg-grid-pattern flex flex-col justify-between selection:bg-brand-500 selection:text-white">
+
+  <!-- Ambient Glow Background -->
+  <div class="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-96 bg-gradient-to-tr from-brand-500/15 via-purple-500/10 to-pink-500/10 blur-3xl pointer-events-none -z-10"></div>
+
+  <!-- ================= NAVBAR ================= -->
+  <header class="sticky top-0 z-30 w-full glass-panel border-b border-slate-200/80 dark:border-slate-800/80">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+      
+      <!-- Brand Logo -->
+      <a href="/" class="flex items-center gap-3 group">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-500 flex items-center justify-center text-white shadow-md shadow-brand-500/25 group-hover:scale-105 transition-transform duration-200">
+          <i data-lucide="zap" class="w-5 h-5 fill-current"></i>
+        </div>
+        <div class="flex flex-col">
+          <span class="text-lg font-bold tracking-tight bg-gradient-to-r from-slate-900 via-brand-600 to-indigo-600 dark:from-white dark:via-brand-300 dark:to-indigo-300 bg-clip-text text-transparent">
+            SnapLink
+          </span>
+          <span class="text-[10px] font-medium text-slate-400 -mt-1 tracking-wider uppercase">URL Shortener</span>
+        </div>
+      </a>
+
+      <!-- Right controls -->
+      <div class="flex items-center gap-2 sm:gap-3">
+        <!-- Live API badge -->
+        <div id="api-status-badge" class="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/50 text-emerald-600 dark:text-emerald-400 text-xs font-medium">
+          <span class="relative flex h-2 w-2">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          </span>
+          <span>API Online</span>
+        </div>
+
+        <!-- API Docs link -->
+        <a href="/docs" target="_blank" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors">
+          <i data-lucide="book-open" class="w-4 h-4"></i>
+          <span class="hidden md:inline">API Docs</span>
+        </a>
+
+        <!-- Dark / Light theme toggle -->
+        <button id="theme-toggle-btn" aria-label="Toggle theme" class="p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors">
+          <i data-lucide="moon" class="w-4 h-4 dark:hidden"></i>
+          <i data-lucide="sun" class="w-4 h-4 hidden dark:inline"></i>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- ================= MAIN CONTENT ================= -->
+  <main class="max-w-6xl w-full mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-12">
+    
+    <!-- Hero / Headline -->
+    <div class="text-center max-w-2xl mx-auto space-y-3">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-50 dark:bg-brand-950/50 border border-brand-200 dark:border-brand-800/60 text-brand-600 dark:text-brand-300 text-xs font-semibold">
+        <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+        <span>Fast, Lightweight & Instant Redirection</span>
+      </div>
+      <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight">
+        Make your links <span class="bg-gradient-to-r from-brand-500 via-indigo-500 to-purple-500 bg-clip-text text-transparent">short & smart</span>
+      </h1>
+      <p class="text-sm sm:text-base text-slate-600 dark:text-slate-400">
+        Transform long, clunky URLs into clean, memorable links. Track clicks in real-time, generate QR codes, and customize slugs.
+      </p>
+    </div>
+
+    <!-- ================= SHORTENER HERO CARD ================= -->
+    <section class="max-w-2xl mx-auto">
+      <div class="glass-panel p-5 sm:p-7 rounded-2xl shadow-xl shadow-slate-200/50 dark:shadow-black/40 glow-primary transition-all">
+        
+        <form id="shorten-form" class="space-y-4">
+          <!-- Main URL Input Box -->
+          <div class="relative">
+            <label for="url-input" class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
+              Destination URL
+            </label>
+            <div class="relative flex items-center">
+              <span class="absolute left-3.5 text-slate-400 dark:text-slate-500 pointer-events-none">
+                <i data-lucide="link" class="w-5 h-5"></i>
+              </span>
+              <input
+                id="url-input"
+                type="text"
+                required
+                placeholder="https://example.com/very/long/article/slug?ref=share"
+                class="w-full pl-11 pr-24 py-3 rounded-xl bg-white dark:bg-slate-900/90 border border-slate-300 dark:border-slate-700/80 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition"
+              />
+              <div class="absolute right-2 flex items-center gap-1">
+                <!-- Clear Button -->
+                <button
+                  type="button"
+                  id="clear-url-btn"
+                  title="Clear input"
+                  class="hidden p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition"
+                >
+                  <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+                <!-- Paste Button -->
+                <button
+                  type="button"
+                  id="paste-url-btn"
+                  title="Paste from clipboard"
+                  class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition flex items-center gap-1"
+                >
+                  <i data-lucide="clipboard" class="w-3.5 h-3.5"></i>
+                  <span class="hidden sm:inline">Paste</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Custom Alias Section (Collapsible) -->
+          <div>
+            <div class="flex items-center justify-between">
+              <button
+                type="button"
+                id="toggle-alias-btn"
+                class="text-xs font-medium text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 flex items-center gap-1 py-1 transition"
+              >
+                <i data-lucide="chevron-right" id="alias-chevron" class="w-3.5 h-3.5 transition-transform duration-200"></i>
+                <span>Customize short code (Optional)</span>
+              </button>
+            </div>
+
+            <div id="alias-drawer" class="hidden mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-800/60">
+              <label for="custom-code-input" class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
+                Custom Alias / Slug
+              </label>
+              <div class="flex items-center rounded-xl bg-white dark:bg-slate-900/90 border border-slate-300 dark:border-slate-700/80 overflow-hidden focus-within:ring-2 focus-within:ring-brand-500 transition">
+                <span class="px-3 py-2.5 bg-slate-100 dark:bg-slate-800/70 text-slate-500 dark:text-slate-400 text-xs font-mono select-none border-r border-slate-200 dark:border-slate-700/80">
+                  http://127.0.0.1:8000/
+                </span>
+                <input
+                  id="custom-code-input"
+                  type="text"
+                  placeholder="my-link"
+                  maxlength="30"
+                  class="w-full px-3 py-2.5 bg-transparent text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 text-sm font-mono focus:outline-none"
+                />
+              </div>
+              <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
+                Leave empty for a random 6-character code (e.g. <span class="font-mono">kX9vL2</span>).
+              </p>
+            </div>
+          </div>
+
+          <!-- Error Alert Banner (Hidden by default) -->
+          <div id="shorten-error-box" class="hidden p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 text-rose-700 dark:text-rose-300 text-xs flex items-start gap-2">
+            <i data-lucide="alert-circle" class="w-4 h-4 flex-shrink-0 mt-0.5"></i>
+            <span id="shorten-error-text">An error occurred</span>
+          </div>
+
+          <!-- Submit Button -->
+          <button
+            type="submit"
+            id="shorten-submit-btn"
+            class="w-full py-3 px-5 rounded-xl bg-gradient-to-r from-brand-600 via-indigo-600 to-brand-700 hover:from-brand-500 hover:via-indigo-500 hover:to-brand-600 text-white font-semibold text-sm shadow-lg shadow-brand-500/30 hover:shadow-brand-500/40 active:scale-[0.99] transition duration-150 flex items-center justify-center gap-2"
+          >
+            <i data-lucide="sparkles" class="w-4 h-4"></i>
+            <span>Shorten URL</span>
+          </button>
+        </form>
+
+        <!-- ================= SUCCESS CARD ================= -->
+        <div id="shorten-success-card" class="hidden mt-6 pt-6 border-t border-slate-200/80 dark:border-slate-800/80 space-y-4">
+          <div class="flex items-center justify-between">
+            <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+              <i data-lucide="check-circle" class="w-4 h-4"></i>
+              <span>Link ready to share!</span>
+            </span>
+            <span class="text-[11px] text-slate-400 dark:text-slate-500">Auto-saved to database</span>
+          </div>
+
+          <!-- Short link display box -->
+          <div class="flex flex-col sm:flex-row items-center justify-between p-3.5 rounded-xl bg-slate-100/90 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 gap-3">
+            <div class="flex items-center gap-2.5 w-full sm:w-auto overflow-hidden">
+              <div class="w-8 h-8 rounded-lg bg-brand-500/10 text-brand-500 flex items-center justify-center flex-shrink-0">
+                <i data-lucide="link-2" class="w-4 h-4"></i>
+              </div>
+              <div class="truncate">
+                <a id="success-short-link" href="#" target="_blank" class="text-sm font-semibold text-brand-600 dark:text-brand-400 hover:underline font-mono truncate block">
+                  http://127.0.0.1:8000/xyz
+                </a>
+                <span id="success-dest-link" class="text-xs text-slate-500 dark:text-slate-400 truncate block max-w-xs sm:max-w-md">
+                  https://example.com/target
+                </span>
+              </div>
+            </div>
+
+            <!-- Action buttons -->
+            <div class="flex items-center gap-2 w-full sm:w-auto justify-end flex-shrink-0">
+              <!-- Copy button -->
+              <button
+                type="button"
+                id="success-copy-btn"
+                class="px-3.5 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold flex items-center gap-1.5 transition active:scale-95 shadow-sm"
+              >
+                <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                <span id="success-copy-text">Copy</span>
+              </button>
+
+              <!-- QR Code button -->
+              <button
+                type="button"
+                id="success-qr-btn"
+                title="View QR Code"
+                class="p-1.5 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition"
+              >
+                <i data-lucide="qr-code" class="w-4 h-4"></i>
+              </button>
+
+              <!-- Open Link button -->
+              <a
+                id="success-visit-link"
+                href="#"
+                target="_blank"
+                title="Open short link"
+                class="p-1.5 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition"
+              >
+                <i data-lucide="external-link" class="w-4 h-4"></i>
+              </a>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ================= METRICS OVERVIEW & TOP LEADERBOARD ================= -->
+    <section class="space-y-6">
+      
+      <!-- Stats 4-Grid -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        
+        <!-- Total Links -->
+        <div class="glass-panel p-4 rounded-xl flex items-center gap-3.5">
+          <div class="w-11 h-11 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center flex-shrink-0">
+            <i data-lucide="link" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <div class="text-xs text-slate-500 dark:text-slate-400 font-medium">Total Links</div>
+            <div id="stat-total-links" class="text-xl font-bold tracking-tight mt-0.5">0</div>
+          </div>
+        </div>
+
+        <!-- Total Clicks -->
+        <div class="glass-panel p-4 rounded-xl flex items-center gap-3.5">
+          <div class="w-11 h-11 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center flex-shrink-0">
+            <i data-lucide="mouse-pointer-click" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <div class="text-xs text-slate-500 dark:text-slate-400 font-medium">Total Clicks</div>
+            <div id="stat-total-clicks" class="text-xl font-bold tracking-tight mt-0.5">0</div>
+          </div>
+        </div>
+
+        <!-- Top Link Code -->
+        <div class="glass-panel p-4 rounded-xl flex items-center gap-3.5">
+          <div class="w-11 h-11 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center flex-shrink-0">
+            <i data-lucide="trophy" class="w-5 h-5"></i>
+          </div>
+          <div class="truncate">
+            <div class="text-xs text-slate-500 dark:text-slate-400 font-medium">Top Performer</div>
+            <div id="stat-top-link" class="text-sm font-bold font-mono tracking-tight mt-0.5 truncate">—</div>
+          </div>
+        </div>
+
+        <!-- Avg Clicks -->
+        <div class="glass-panel p-4 rounded-xl flex items-center gap-3.5">
+          <div class="w-11 h-11 rounded-xl bg-purple-500/10 text-purple-500 flex items-center justify-center flex-shrink-0">
+            <i data-lucide="bar-chart-3" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <div class="text-xs text-slate-500 dark:text-slate-400 font-medium">Avg Clicks / Link</div>
+            <div id="stat-avg-clicks" class="text-xl font-bold tracking-tight mt-0.5">0</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Top Performing Leaderboard Widget -->
+      <div class="glass-panel p-5 rounded-2xl">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-2">
+            <div class="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center">
+              <i data-lucide="flame" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <h2 class="text-sm font-bold tracking-tight">Top Performing Links</h2>
+              <p class="text-xs text-slate-500 dark:text-slate-400">Most clicked links ranked in real time</p>
+            </div>
+          </div>
+          <span class="text-[11px] font-medium text-slate-400">Default Top 5</span>
+        </div>
+
+        <!-- Top links list -->
+        <div id="top-links-container" class="space-y-2.5">
+          <!-- Dynamically populated or skeleton -->
+          <div class="h-10 skeleton rounded-lg"></div>
+          <div class="h-10 skeleton rounded-lg"></div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ================= ALL LINKS TABLE & MANAGEMENT ================= -->
+    <section class="space-y-4">
+      
+      <!-- Table Header & Controls -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="flex items-center gap-2">
+          <h2 class="text-lg font-bold tracking-tight">All Short Links</h2>
+          <span id="links-count-badge" class="px-2 py-0.5 text-xs font-semibold rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+            0
+          </span>
+        </div>
+
+        <!-- Search Bar and Refresh -->
+        <div class="flex items-center gap-2">
+          <div class="relative w-full sm:w-64">
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+              <i data-lucide="search" class="w-4 h-4"></i>
+            </span>
+            <input
+              id="search-input"
+              type="text"
+              placeholder="Search code or destination..."
+              class="w-full pl-9 pr-8 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 transition"
+            />
+            <button
+              id="clear-search-btn"
+              type="button"
+              class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+            >
+              <i data-lucide="x" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+
+          <!-- Refresh Button -->
+          <button
+            id="refresh-btn"
+            title="Refresh link list"
+            class="p-2 rounded-xl border border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition"
+          >
+            <i data-lucide="refresh-cw" id="refresh-icon" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Links Container -->
+      <div class="glass-panel rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800/80">
+        
+        <!-- Desktop Table View -->
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="border-b border-slate-200/80 dark:border-slate-800/80 text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 bg-slate-50/50 dark:bg-slate-900/50">
+                <th class="py-3 px-4">Short Link</th>
+                <th class="py-3 px-4">Original Destination</th>
+                <th class="py-3 px-4 text-center">Clicks</th>
+                <th class="py-3 px-4">Created</th>
+                <th class="py-3 px-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="links-table-body" class="divide-y divide-slate-200/60 dark:divide-slate-800/60 text-xs">
+              <!-- Dynamically populated -->
+              <tr>
+                <td colspan="5" class="py-12 text-center text-slate-400">
+                  <div class="skeleton h-6 w-3/4 mx-auto mb-2 rounded"></div>
+                  <div class="skeleton h-6 w-1/2 mx-auto rounded"></div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Empty State Container -->
+        <div id="empty-state" class="hidden py-16 px-4 text-center space-y-3">
+          <div class="w-14 h-14 rounded-2xl bg-brand-500/10 text-brand-500 flex items-center justify-center mx-auto">
+            <i data-lucide="link-2-off" class="w-7 h-7"></i>
+          </div>
+          <h3 class="text-sm font-bold">No short links found</h3>
+          <p id="empty-state-subtitle" class="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+            There are no links created yet. Use the form above to generate your first shortened URL!
+          </p>
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ================= FOOTER ================= -->
+  <footer class="border-t border-slate-200/80 dark:border-slate-800/80 py-6 text-center text-xs text-slate-400 dark:text-slate-500">
+    <div class="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div class="flex items-center gap-2">
+        <span class="font-semibold text-slate-700 dark:text-slate-300">SnapLink</span>
+        <span>•</span>
+        <span>FastAPI + SQLite + Tailwind</span>
+      </div>
+      <div>
+        Running locally on <code class="font-mono text-brand-500">127.0.0.1:8000</code>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ================= MODALS ================= -->
+
+  <!-- 1. QR Code Modal -->
+  <div id="qr-modal" class="modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+    <div class="modal-content glass-panel bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <i data-lucide="qr-code" class="w-5 h-5 text-brand-500"></i>
+          <h3 class="text-base font-bold">QR Code</h3>
+        </div>
+        <button type="button" class="close-modal-btn p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- QR Canvas Container -->
+      <div class="flex flex-col items-center justify-center p-4 bg-white rounded-xl shadow-inner border border-slate-100">
+        <div id="modal-qrcode-container" class="flex justify-center items-center"></div>
+      </div>
+
+      <div class="text-center space-y-1">
+        <div id="modal-qr-code-text" class="font-mono text-xs font-semibold text-brand-600 dark:text-brand-400 truncate">
+          http://127.0.0.1:8000/...
+        </div>
+        <p class="text-[11px] text-slate-400 truncate" id="modal-qr-dest-text">
+          Target destination
+        </p>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="grid grid-cols-2 gap-2 pt-2">
+        <button
+          type="button"
+          id="modal-qr-download-btn"
+          class="py-2 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-semibold flex items-center justify-center gap-1.5 transition"
+        >
+          <i data-lucide="download" class="w-3.5 h-3.5"></i>
+          <span>Download PNG</span>
+        </button>
+        <button
+          type="button"
+          id="modal-qr-copy-btn"
+          class="py-2 px-3 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition"
+        >
+          <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+          <span>Copy Link</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. Edit Destination Modal -->
+  <div id="edit-modal" class="modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+    <div class="modal-content glass-panel bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <i data-lucide="edit-3" class="w-5 h-5 text-brand-500"></i>
+          <h3 class="text-base font-bold">Edit Destination URL</h3>
+        </div>
+        <button type="button" class="close-modal-btn p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <form id="edit-form" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+            Short Code (Fixed)
+          </label>
+          <div id="edit-modal-code" class="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800/80 font-mono text-xs font-semibold text-slate-600 dark:text-slate-300">
+            code
+          </div>
+        </div>
+
+        <div>
+          <label for="edit-url-input" class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+            New Destination URL
+          </label>
+          <input
+            id="edit-url-input"
+            type="text"
+            required
+            placeholder="https://new-destination.com"
+            class="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500"
+          />
+        </div>
+
+        <div id="edit-error-box" class="hidden p-2.5 rounded-lg bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 text-xs">
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-2">
+          <button
+            type="button"
+            class="close-modal-btn px-4 py-2 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            id="edit-save-btn"
+            class="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold transition"
+          >
+            Save Changes
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 3. Delete Confirmation Modal -->
+  <div id="delete-modal" class="modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+    <div class="modal-content glass-panel bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+      <div class="w-12 h-12 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto">
+        <i data-lucide="trash-2" class="w-6 h-6"></i>
+      </div>
+
+      <div class="text-center space-y-1">
+        <h3 class="text-base font-bold">Delete Short Link?</h3>
+        <p class="text-xs text-slate-500 dark:text-slate-400">
+          Are you sure you want to delete short code <span id="delete-modal-code" class="font-mono font-semibold text-slate-900 dark:text-white"></span>? This action cannot be undone.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 pt-2">
+        <button
+          type="button"
+          class="close-modal-btn py-2 px-3 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          id="confirm-delete-btn"
+          class="py-2 px-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold transition"
+        >
+          Delete Link
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Stats Detail Modal -->
+  <div id="stats-modal" class="modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+    <div class="modal-content glass-panel bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <i data-lucide="bar-chart-2" class="w-5 h-5 text-brand-500"></i>
+          <h3 class="text-base font-bold">Link Statistics</h3>
+        </div>
+        <button type="button" class="close-modal-btn p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 space-y-1">
+          <div class="text-[11px] text-slate-400 uppercase font-semibold">Short URL</div>
+          <a id="stats-modal-short" href="#" target="_blank" class="font-mono text-brand-500 hover:underline font-semibold block truncate"></a>
+        </div>
+
+        <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 space-y-1">
+          <div class="text-[11px] text-slate-400 uppercase font-semibold">Original Destination</div>
+          <a id="stats-modal-dest" href="#" target="_blank" class="text-slate-700 dark:text-slate-300 hover:underline block break-all"></a>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60">
+            <div class="text-[11px] text-slate-400 uppercase font-semibold">Total Clicks</div>
+            <div id="stats-modal-clicks" class="text-xl font-bold text-slate-900 dark:text-white mt-1">0</div>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60">
+            <div class="text-[11px] text-slate-400 uppercase font-semibold">Created At</div>
+            <div id="stats-modal-created" class="text-xs font-medium text-slate-700 dark:text-slate-300 mt-2">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pt-2 flex justify-end">
+        <button
+          type="button"
+          class="close-modal-btn px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none max-w-sm w-full"></div>
+
+  <!-- Application Logic -->
+  <script src="/static/app.js"></script>
+</body>
+</html>

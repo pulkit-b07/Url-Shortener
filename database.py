@@ -22,4 +22,4 @@ def init_db():
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP
             )
             """
-        ) 
+        )
